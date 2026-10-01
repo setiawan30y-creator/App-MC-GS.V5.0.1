@@ -1,17 +1,218 @@
 <script>
+var APP_STATE={token:null,user:null,currencies:[],editingId:null};
+
+function $(id){return document.getElementById(id)}
+
 function showPage(id){
   document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
-  var page=document.getElementById(id);
+  document.querySelectorAll('.sidebar button').forEach(function(el){el.classList.remove('active')});
+  var page=$(id);
   if(page) page.classList.add('active');
+  var nav=document.querySelector('.sidebar button[data-page="'+id+'"]');
+  if(nav) nav.classList.add('active');
+  if(id==='currency') loadCurrencies();
 }
+
+function setAlert(id,message,type){
+  var el=$(id); if(!el) return;
+  el.className='alert '+(type==='success'?'alert-success':'alert-error')+' show';
+  el.textContent=message;
+  setTimeout(function(){el.classList.remove('show')},3500);
+}
+
+function showLogin(){
+  $('loginScreen').classList.remove('hidden');
+  $('app').classList.add('hidden');
+}
+
+function showApp(user){
+  APP_STATE.user=user||null;
+  $('loginScreen').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('userName').textContent=user&&user.name?user.name:'Administrator';
+  $('userRole').textContent=user&&user.role_id?user.role_id:'';
+  showPage('dashboard');
+}
+
+function loginAction(){
+  var username=$('loginUsername').value.trim();
+  var password=$('loginPassword').value;
+  if(!username||!password){setAlert('loginAlert','Username dan password wajib diisi.','error');return}
+  $('loginButton').disabled=true;
+  $('loginButton').textContent='Memproses...';
+  google.script.run.withSuccessHandler(function(result){
+    $('loginButton').disabled=false;
+    $('loginButton').textContent='Masuk';
+    if(!result||!result.success||!result.token){
+      setAlert('loginAlert','Login gagal.','error');return;
+    }
+    APP_STATE.token=result.token;
+    sessionStorage.setItem('mc_al_token',result.token);
+    showApp(result.user);
+  }).withFailureHandler(function(err){
+    $('loginButton').disabled=false;
+    $('loginButton').textContent='Masuk';
+    setAlert('loginAlert',err&&err.message?err.message:'Login gagal.','error');
+  }).login(username,password);
+}
+
+function logoutAction(){
+  var token=APP_STATE.token;
+  APP_STATE.token=null;
+  sessionStorage.removeItem('mc_al_token');
+  if(token){
+    google.script.run.withSuccessHandler(showLogin).withFailureHandler(showLogin).logout(token);
+  }else showLogin();
+}
+
+function validateExistingSession(token){
+  google.script.run.withSuccessHandler(function(result){
+    if(result&&result.valid&&result.user){
+      APP_STATE.token=token;
+      showApp(result.user);
+    }else{
+      sessionStorage.removeItem('mc_al_token');showLogin();
+    }
+  }).withFailureHandler(function(){sessionStorage.removeItem('mc_al_token');showLogin()})
+    .validateSession(token);
+}
+
 function boot(){
   google.script.run.withSuccessHandler(function(info){
-    document.getElementById('version').textContent='v'+info.version;
-    document.getElementById('company').textContent=info.companyName;
-    document.getElementById('status').textContent='Foundation online\n'+JSON.stringify(info,null,2);
+    $('version').textContent='v'+info.version;
+    $('company').textContent=info.companyName;
+    $('status').textContent='Foundation online\n'+JSON.stringify(info,null,2);
+    var token=sessionStorage.getItem('mc_al_token');
+    if(token) validateExistingSession(token); else showLogin();
   }).withFailureHandler(function(err){
-    document.getElementById('status').textContent='Error: '+err.message;
+    $('status').textContent='Error: '+(err&&err.message?err.message:err);
+    showLogin();
   }).getWebAppData();
 }
-document.addEventListener('DOMContentLoaded',boot);
+
+function loadCurrencies(){
+  if(!APP_STATE.token){showLogin();return}
+  $('currencyTableBody').innerHTML='<tr><td colspan="7" class="loading">Memuat data currency...</td></tr>';
+  google.script.run.withSuccessHandler(function(rows){
+    APP_STATE.currencies=Array.isArray(rows)?rows:[];
+    renderCurrencies();
+  }).withFailureHandler(function(err){
+    $('currencyTableBody').innerHTML='<tr><td colspan="7" class="empty">Gagal memuat: '+escapeHtml(err&&err.message?err.message:'Unknown error')+'</td></tr>';
+  }).listCurrencies(APP_STATE.token);
+}
+
+function renderCurrencies(){
+  var q=($('currencySearch').value||'').trim().toLowerCase();
+  var status=$('currencyStatusFilter').value;
+  var rows=APP_STATE.currencies.filter(function(r){
+    var text=[r.code,r.name,r.country,r.symbol,r.iso_numeric].join(' ').toLowerCase();
+    return (!q||text.indexOf(q)!==-1)&&(!status||String(r.status||'').toUpperCase()===status);
+  });
+  if(!rows.length){
+    $('currencyTableBody').innerHTML='<tr><td colspan="7" class="empty">Belum ada currency yang sesuai.</td></tr>';
+    return;
+  }
+  $('currencyTableBody').innerHTML=rows.map(function(r){
+    var active=String(r.status||'').toUpperCase()==='ACTIVE';
+    return '<tr>'+
+      '<td><strong>'+escapeHtml(r.code)+'</strong></td>'+
+      '<td>'+escapeHtml(r.name)+'</td>'+
+      '<td>'+escapeHtml(r.country||'-')+'</td>'+
+      '<td>'+escapeHtml(r.iso_numeric||'-')+'</td>'+
+      '<td>'+escapeHtml(r.symbol||'-')+'</td>'+
+      '<td><span class="status '+(active?'status-active':'status-inactive')+'">'+escapeHtml(r.status||'-')+'</span></td>'+
+      '<td><div class="actions">'+
+      '<button class="btn btn-secondary btn-small" onclick="openCurrencyEdit(\''+escapeJs(r.currency_id)+'\')">Edit</button>'+
+      '<button class="btn '+(active?'btn-danger':'btn-primary')+' btn-small" onclick="toggleCurrencyStatus(\''+escapeJs(r.currency_id)+'\',\''+(active?'INACTIVE':'ACTIVE')+'\')">'+(active?'Nonaktifkan':'Aktifkan')+'</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+
+function openCurrencyCreate(){
+  APP_STATE.editingId=null;
+  $('currencyModalTitle').textContent='Tambah Currency';
+  $('currencyId').value='';
+  $('currencyCode').value='';
+  $('currencyName').value='';
+  $('currencyCountry').value='';
+  $('currencyIso').value='';
+  $('currencySymbol').value='';
+  $('currencyFlag').value='';
+  $('currencyFormAlert').className='alert';
+  $('currencyModal').classList.add('show');
+}
+
+function openCurrencyEdit(id){
+  var row=APP_STATE.currencies.find(function(r){return String(r.currency_id)===String(id)});
+  if(!row){return}
+  APP_STATE.editingId=row.currency_id;
+  $('currencyModalTitle').textContent='Edit Currency';
+  $('currencyId').value=row.currency_id||'';
+  $('currencyCode').value=row.code||'';
+  $('currencyName').value=row.name||'';
+  $('currencyCountry').value=row.country||'';
+  $('currencyIso').value=row.iso_numeric||'';
+  $('currencySymbol').value=row.symbol||'';
+  $('currencyFlag').value=row.flag_url||'';
+  $('currencyFormAlert').className='alert';
+  $('currencyModal').classList.add('show');
+}
+
+function closeCurrencyModal(){$('currencyModal').classList.remove('show')}
+
+function saveCurrency(){
+  var data={
+    code:$('currencyCode').value.trim(),
+    name:$('currencyName').value.trim(),
+    country:$('currencyCountry').value.trim(),
+    iso_numeric:$('currencyIso').value.trim(),
+    symbol:$('currencySymbol').value.trim(),
+    flag_url:$('currencyFlag').value.trim()
+  };
+  if(!data.code||!data.name){setAlert('currencyFormAlert','Kode dan nama currency wajib diisi.','error');return}
+  $('currencySaveButton').disabled=true;
+  $('currencySaveButton').textContent='Menyimpan...';
+  var success=function(result){
+    $('currencySaveButton').disabled=false;
+    $('currencySaveButton').textContent='Simpan';
+    closeCurrencyModal();
+    setAlert('currencyAlert',APP_STATE.editingId?'Currency berhasil diperbarui.':'Currency berhasil ditambahkan.','success');
+    loadCurrencies();
+  };
+  var failure=function(err){
+    $('currencySaveButton').disabled=false;
+    $('currencySaveButton').textContent='Simpan';
+    setAlert('currencyFormAlert',err&&err.message?err.message:'Gagal menyimpan.','error');
+  };
+  if(APP_STATE.editingId){
+    google.script.run.withSuccessHandler(success).withFailureHandler(failure)
+      .updateCurrency(APP_STATE.token,APP_STATE.editingId,data);
+  }else{
+    data.created_by=APP_STATE.user&&APP_STATE.user.username?APP_STATE.user.username:'web';
+    google.script.run.withSuccessHandler(success).withFailureHandler(failure)
+      .createCurrency(APP_STATE.token,data);
+  }
+}
+
+function toggleCurrencyStatus(id,status){
+  var label=status==='ACTIVE'?'mengaktifkan':'menonaktifkan';
+  if(!confirm('Yakin ingin '+label+' currency ini?')) return;
+  google.script.run.withSuccessHandler(function(){
+    setAlert('currencyAlert','Status currency berhasil diubah.','success');
+    loadCurrencies();
+  }).withFailureHandler(function(err){
+    setAlert('currencyAlert',err&&err.message?err.message:'Gagal mengubah status.','error');
+  }).setCurrencyStatus(APP_STATE.token,id,status,APP_STATE.user&&APP_STATE.user.username?APP_STATE.user.username:'web');
+}
+
+function escapeHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function escapeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+
+document.addEventListener('DOMContentLoaded',function(){
+  $('loginForm').addEventListener('submit',function(e){e.preventDefault();loginAction()});
+  $('currencySearch').addEventListener('input',renderCurrencies);
+  $('currencyStatusFilter').addEventListener('change',renderCurrencies);
+  $('currencyModal').addEventListener('click',function(e){if(e.target===this)closeCurrencyModal()});
+  boot();
+});
 </script>
