@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('CSS'); ?>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div><strong>MC-App-Almara</strong><span id="version"></span></div>
+      <div id="company"></div>
+    </header>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">ALMARA<br><small>MONEY CHANGER</small></div>
+        <button onclick="showPage('dashboard')">🏠 Dashboard</button>
+        <button onclick="showPage('transaction')">💱 Transaksi</button>
+        <button onclick="showPage('customer')">👤 Customer</button>
+        <button onclick="showPage('currency')">💵 Currency</button>
+        <button onclick="showPage('stock')">📦 Stock Valas</button>
+        <button onclick="showPage('cash')">💰 Cash</button>
+        <button onclick="showPage('bank')">🏦 Bank</button>
+        <button onclick="showPage('closing')">📒 Closing</button>
+        <button onclick="showPage('gantungan')">🔗 Gantungan</button>
+        <button onclick="showPage('report')">📊 Report</button>
+        <button onclick="showPage('settings')">⚙️ Settings</button>
+      </aside>
+      <section class="content">
+        <div id="dashboard" class="page active">
+          <h1>Dashboard</h1>
+          <div class="cards">
+            <div class="card"><span>Cash Position</span><strong>Rp 0</strong></div>
+            <div class="card"><span>Bank Position</span><strong>Rp 0</strong></div>
+            <div class="card"><span>Stock Valas</span><strong>Rp 0</strong></div>
+            <div class="card"><span>Today's Transaction</span><strong>0</strong></div>
+          </div>
+          <div class="panel"><h2>Foundation Status</h2><pre id="status">Memuat...</pre></div>
+        </div>
+        <div id="transaction" class="page"><h1>Transaksi</h1><div class="panel">Transaction Engine V5.0.1 — foundation siap.</div></div>
+        <div id="customer" class="page"><h1>Customer</h1><div class="panel">Customer Master — foundation siap.</div></div>
+        <div id="currency" class="page"><h1>Currency</h1><div class="panel">Currency, denomination, dan rate — foundation siap.</div></div>
+        <div id="stock" class="page"><h1>Stock Valas</h1><div class="panel">Stock engine — foundation siap.</div></div>
+        <div id="cash" class="page"><h1>Cash</h1><div class="panel">Cash account — foundation siap.</div></div>
+        <div id="bank" class="page"><h1>Bank</h1><div class="panel">Bank account — foundation siap.</div></div>
+        <div id="closing" class="page"><h1>Closing Rp</h1><div class="panel">Reconciliation formula sudah tersedia.</div></div>
+        <div id="gantungan" class="page"><h1>Gantungan</h1><div class="panel">Independent Rupiah cash accountability.</div></div>
+        <div id="report" class="page"><h1>Report</h1><div class="panel">Reporting module akan dibangun berikutnya.</div></div>
+        <div id="settings" class="page"><h1>Settings</h1><div class="panel">System settings.</div></div>
+      </section>
+    </main>
+  </div>
+  <?!= include('JS'); ?>
+</body>
+</html>
