@@ -5,26 +5,48 @@
   <?!= include('CSS'); ?>
 </head>
 <body>
-  <div id="app">
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">ALMARA</div>
+      <div class="login-sub">MONEY CHANGER DIGITAL OS · V5.0.1</div>
+      <div id="loginAlert" class="alert"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label>Username</label>
+          <input id="loginUsername" autocomplete="username" placeholder="Masukkan username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Masukkan password">
+        </div>
+        <button id="loginButton" class="btn btn-primary" type="submit">Masuk</button>
+      </form>
+      <div class="login-note">Akses dilindungi oleh session authentication.</div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
     <header class="topbar">
       <div><strong>MC-App-Almara</strong><span id="version"></span></div>
-      <div id="company"></div>
+      <div class="userbar"><span id="company"></span><span id="userName"></span><span id="userRole"></span><button class="logout" onclick="logoutAction()">Keluar</button></div>
     </header>
+
     <main class="shell">
       <aside class="sidebar">
         <div class="brand">ALMARA<br><small>MONEY CHANGER</small></div>
-        <button onclick="showPage('dashboard')">🏠 Dashboard</button>
-        <button onclick="showPage('transaction')">💱 Transaksi</button>
-        <button onclick="showPage('customer')">👤 Customer</button>
-        <button onclick="showPage('currency')">💵 Currency</button>
-        <button onclick="showPage('stock')">📦 Stock Valas</button>
-        <button onclick="showPage('cash')">💰 Cash</button>
-        <button onclick="showPage('bank')">🏦 Bank</button>
-        <button onclick="showPage('closing')">📒 Closing</button>
-        <button onclick="showPage('gantungan')">🔗 Gantungan</button>
-        <button onclick="showPage('report')">📊 Report</button>
-        <button onclick="showPage('settings')">⚙️ Settings</button>
+        <button data-page="dashboard" onclick="showPage('dashboard')">🏠 Dashboard</button>
+        <button data-page="transaction" onclick="showPage('transaction')">💱 Transaksi</button>
+        <button data-page="customer" onclick="showPage('customer')">👤 Customer</button>
+        <button data-page="currency" onclick="showPage('currency')">💵 Currency</button>
+        <button data-page="stock" onclick="showPage('stock')">📦 Stock Valas</button>
+        <button data-page="cash" onclick="showPage('cash')">💰 Cash</button>
+        <button data-page="bank" onclick="showPage('bank')">🏦 Bank</button>
+        <button data-page="closing" onclick="showPage('closing')">📒 Closing</button>
+        <button data-page="gantungan" onclick="showPage('gantungan')">🔗 Gantungan</button>
+        <button data-page="report" onclick="showPage('report')">📊 Report</button>
+        <button data-page="settings" onclick="showPage('settings')">⚙️ Settings</button>
       </aside>
+
       <section class="content">
         <div id="dashboard" class="page active">
           <h1>Dashboard</h1>
@@ -36,9 +58,35 @@
           </div>
           <div class="panel"><h2>Foundation Status</h2><pre id="status">Memuat...</pre></div>
         </div>
+
         <div id="transaction" class="page"><h1>Transaksi</h1><div class="panel">Transaction Engine V5.0.1 — foundation siap.</div></div>
         <div id="customer" class="page"><h1>Customer</h1><div class="panel">Customer Master — foundation siap.</div></div>
-        <div id="currency" class="page"><h1>Currency</h1><div class="panel">Currency, denomination, dan rate — foundation siap.</div></div>
+
+        <div id="currency" class="page">
+          <div class="page-head">
+            <div><h1>Currency Master</h1><div class="subtitle">Kelola master mata uang yang digunakan dalam transaksi Money Changer.</div></div>
+            <button class="btn btn-primary" onclick="openCurrencyCreate()">＋ Tambah Currency</button>
+          </div>
+          <div id="currencyAlert" class="alert"></div>
+          <div class="panel">
+            <div class="toolbar">
+              <input id="currencySearch" class="search" placeholder="Cari kode, nama, negara, simbol, ISO numeric...">
+              <select id="currencyStatusFilter" class="filter">
+                <option value="">Semua Status</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+              <button class="btn btn-secondary" onclick="loadCurrencies()">↻ Refresh</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Kode</th><th>Currency</th><th>Country</th><th>ISO Numeric</th><th>Symbol</th><th>Status</th><th>Aksi</th></tr></thead>
+                <tbody id="currencyTableBody"><tr><td colspan="7" class="loading">Memuat...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div id="stock" class="page"><h1>Stock Valas</h1><div class="panel">Stock engine — foundation siap.</div></div>
         <div id="cash" class="page"><h1>Cash</h1><div class="panel">Cash account — foundation siap.</div></div>
         <div id="bank" class="page"><h1>Bank</h1><div class="panel">Bank account — foundation siap.</div></div>
@@ -49,6 +97,27 @@
       </section>
     </main>
   </div>
+
+  <div id="currencyModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-head"><h2 id="currencyModalTitle">Tambah Currency</h2><button class="modal-close" onclick="closeCurrencyModal()">×</button></div>
+      <div class="modal-body">
+        <div id="currencyFormAlert" class="alert"></div>
+        <input id="currencyId" type="hidden">
+        <div class="form-grid">
+          <div class="field"><label>Kode Currency *</label><input id="currencyCode" maxlength="3" placeholder="USD"></div>
+          <div class="field"><label>Nama Currency *</label><input id="currencyName" placeholder="US Dollar"></div>
+          <div class="field"><label>Country</label><input id="currencyCountry" placeholder="United States"></div>
+          <div class="field"><label>ISO Numeric</label><input id="currencyIso" placeholder="840"></div>
+          <div class="field"><label>Symbol</label><input id="currencySymbol" placeholder="$"></div>
+          <div class="field"><label>Flag URL</label><input id="currencyFlag" placeholder="https://..."></div>
+          <div class="field full"><div class="hint">Status awal currency baru otomatis ACTIVE.</div></div>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn btn-secondary" onclick="closeCurrencyModal()">Batal</button><button id="currencySaveButton" class="btn btn-primary" onclick="saveCurrency()">Simpan</button></div>
+    </div>
+  </div>
+
   <?!= include('JS'); ?>
 </body>
 </html>
