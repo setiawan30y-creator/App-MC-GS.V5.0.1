@@ -1,0 +1,17 @@
+<script>
+function showPage(id){
+  document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
+  var page=document.getElementById(id);
+  if(page) page.classList.add('active');
+}
+function boot(){
+  google.script.run.withSuccessHandler(function(info){
+    document.getElementById('version').textContent='v'+info.version;
+    document.getElementById('company').textContent=info.companyName;
+    document.getElementById('status').textContent='Foundation online\n'+JSON.stringify(info,null,2);
+  }).withFailureHandler(function(err){
+    document.getElementById('status').textContent='Error: '+err.message;
+  }).getWebAppData();
+}
+document.addEventListener('DOMContentLoaded',boot);
+</script>
